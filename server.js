@@ -64,6 +64,11 @@ app.get('/test', (req, res) => {
   });
 });
 
+// Favicon handler (prevent 500 errors)
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
 // Serve static files (admin portal) with proper MIME types
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
@@ -103,10 +108,14 @@ app.get('/health', (req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  // Error handled by response - logging removed for production
+  // Log error for debugging in Vercel
+  console.error('Server Error:', err.message);
+  console.error('Stack:', err.stack);
+  
   res.status(500).json({
     success: false,
-    message: 'Internal server error'
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Server error'
   });
 });
 

@@ -3,19 +3,32 @@ const path = require('path');
 const fs = require('fs');
 const config = require('./config');
 
-// Ensure database directory exists
-const dbDir = path.dirname(config.databasePath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
+// For serverless environments (like Vercel), use in-memory database
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
 
-// Create database connection
-const db = new sqlite3.Database(config.databasePath, (err) => {
-  if (err) {
-    // Database connection error - handled silently in production
+let db;
+
+if (isServerless) {
+  // Use in-memory database for serverless
+  db = new sqlite3.Database(':memory:', (err) => {
+    if (err) {
+      console.error('Error creating in-memory database:', err.message);
+    }
+  });
+} else {
+  // Use file database for regular hosting
+  const dbDir = path.dirname(config.databasePath);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
   }
-  // Database connected successfully - no console output in production
-});
+
+  db = new sqlite3.Database(config.databasePath, (err) => {
+    if (err) {
+      // Database connection error - handled silently in production
+    }
+    // Database connected successfully - no console output in production
+  });
+}
 
 // Initialize database tables
 const initDatabase = () => {
