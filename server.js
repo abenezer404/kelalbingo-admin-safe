@@ -41,6 +41,29 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api', apiLimiter, require('./src/routes/api'));
 app.use('/admin', adminLimiter, require('./src/routes/admin'));
 
+// Health check endpoint (before static files)
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    environment: config.nodeEnv,
+    version: require('./package.json').version || '1.0.0'
+  });
+});
+
+// Test route to verify server is working
+app.get('/test', (req, res) => {
+  res.json({
+    message: 'Server is working',
+    routes: {
+      login: '/admin/login (POST)',
+      verifyOtp: '/admin/verify-otp (POST)',
+      health: '/health (GET)'
+    }
+  });
+});
+
 // Serve static files (admin portal) with proper MIME types
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
@@ -61,7 +84,9 @@ app.get('/', (req, res) => {
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found'
+    message: 'Route not found',
+    requestedPath: req.path,
+    method: req.method
   });
 });
 
@@ -88,11 +113,15 @@ app.use((err, req, res, next) => {
 // Initialize database and start server
 initDatabase()
   .then(() => {
-    app.listen(config.port, () => {
-      // Server started successfully - no console output in production
+    const port = process.env.PORT || config.port || 3000;
+    app.listen(port, () => {
+      console.log(`🚀 KELALBINGO Admin Server running on port ${port}`);
+      console.log(`📊 Health check: http://localhost:${port}/health`);
+      console.log(`🔐 Admin login: http://localhost:${port}/`);
+      console.log(`🧪 Test route: http://localhost:${port}/test`);
     });
   })
   .catch((err) => {
-    // Database initialization error - exit process
+    console.error('❌ Failed to initialize database:', err);
     process.exit(1);
   });
